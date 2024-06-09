@@ -1,0 +1,176 @@
+Sub CreateTxtFileFromGTC()
+    ' Declare variables
+    Dim SelectedFolder As String
+    Dim FileSystem As Object
+    Dim MainFolder As Object
+    Dim SubFolder As Object
+    Dim FolderName As String
+    Dim File As Object
+    Dim FilePaths As Collection
+    Dim FilePath As Variant ' Change to Variant
+    Dim Position As String
+    Dim OutputFile As String
+    Dim RowNum As Integer
+    Dim TxtContent As String
+    Dim SampleName As String
+    Dim SampleType As String
+    Dim ProcessingSetting As String
+    Dim GDABeadChip As String
+    Dim PatientName As String
+    Dim PatientId As String
+    Dim Age As String
+    Dim Indication As String
+    Dim Doctor As String
+    Dim i As Integer
+    
+    ' Variables for CSV parsing
+    Dim CsvFile As String
+    Dim CsvLine As String
+    Dim CsvData As Variant
+    Dim SampleID As String
+    Dim SentrixPosition As String
+    Dim CsvFileMapping As Object
+    
+    ' Initialize file system object and file paths collection
+    Set FileSystem = CreateObject("Scripting.FileSystemObject")
+    Set FilePaths = New Collection
+    Set CsvFileMapping = CreateObject("Scripting.Dictionary")
+    
+    ' Ask user if they have checked sample types
+    If MsgBox("Kas kontrollisid näidustuste failis VIA failitüübid üle?", vbYesNo + vbQuestion, "Sample Types") = vbNo Then
+        MsgBox "Ära usalda rumalat masinat. " & vbNewLine & "Palun kontrolli automaatselt määratud VIA failitüübid üle!", vbExclamation
+        Exit Sub
+    End If
+
+    ' Prompt user to select a directory
+    MsgBox "Palun vali kaust, kus asub sellele näidustuste failile vastav Genome Studio projekt!", vbInformation
+    With Application.FileDialog(msoFileDialogFolderPicker)
+        .Title = "Palun vali kaust, kus asub Genome Studio projekt"
+        If .Show = -1 Then
+            SelectedFolder = .SelectedItems(1)
+        Else
+            MsgBox "Oi-oi. Kaust jäi valmimata." & vbNewLine & "Ei saanud VIA faili teha.", vbExclamation
+            Exit Sub
+        End If
+    End With
+    
+    ' Extract folder name from the selected folder path
+    Dim FolderPathSplit As Variant
+    FolderPathSplit = Split(SelectedFolder, "\")
+    FolderName = FolderPathSplit(UBound(FolderPathSplit))
+    
+
+    ' Recursively scan for .gtc files
+    Set MainFolder = FileSystem.GetFolder(SelectedFolder)
+    Call GetGTCFiles(MainFolder, FilePaths)
+    
+    ' Find the CSV file in the selected folder
+    CsvFile = ""
+    For Each File In MainFolder.Files
+        If File.Name Like "CytoChip*.csv" Then
+            CsvFile = File.Path
+            Exit For
+        End If
+    Next File
+    
+    If CsvFile = "" Then
+        MsgBox "Oi-oi. Ei õnnestunud CytoChip csv faili leida." & vbNewLine & "Ei saanud VIA faili teha.", vbExclamation
+        Exit Sub
+    End If
+    
+    ' Read and parse the CSV file
+    Open CsvFile For Input As #1
+    i = 0
+    Do While Not EOF(1)
+        Line Input #1, CsvLine
+        i = i + 1
+        If i >= 10 Then ' Data starts from row 10
+            CsvData = Split(CsvLine, ",")
+            SampleID = CsvData(0)
+            SentrixPosition = CsvData(7)
+            CsvFileMapping.Add SampleID, SentrixPosition
+        End If
+    Loop
+    Close #1
+
+    ' Prepare output text file path
+    OutputFile = SelectedFolder & "\" & FolderName & "_Via.txt"
+
+    ' Open text file for writing
+    Open OutputFile For Output As #1
+
+    ' Write the header to the text file
+    Print #1, "Sample Name" & vbTab & "Filename" & vbTab & "Sample Type" & vbTab & "Processing Setting" & vbTab & "GDA BeadChip" & vbTab & "Patient Name" & vbTab & "Patient Id" & vbTab & "Age" & vbTab & "Indication" & vbTab & "Doctor"
+
+    ' Iterate through rows 2 to 33 in the Excel sheet and write data to text file
+    For RowNum = 2 To 33
+        ' Extract data from the Excel sheet
+        SampleName = ThisWorkbook.Sheets(1).Cells(RowNum, 5).Value
+        SampleType = ThisWorkbook.Sheets(1).Cells(RowNum, 11).Value
+        ProcessingSetting = "GDA-v1"
+        GDABeadChip = "GDA_" & ThisWorkbook.Sheets(1).Cells(RowNum, 1).Value
+        PatientName = ThisWorkbook.Sheets(1).Cells(RowNum, 3).Value
+        PatientId = ThisWorkbook.Sheets(1).Cells(RowNum, 4).Value
+        Age = ThisWorkbook.Sheets(1).Cells(RowNum, 6).Value
+        Indication = ThisWorkbook.Sheets(1).Cells(RowNum, 9).Value & " " & ThisWorkbook.Sheets(1).Cells(RowNum, 10).Value
+        Doctor = ThisWorkbook.Sheets(1).Cells(RowNum, 8).Value
+
+        ' Initialize the path to "No corresponding file"
+        FilePath = "Fail puudub"
+        
+        ' Find the corresponding file path based on SampleName
+        If CsvFileMapping.Exists(SampleName) Then
+            SentrixPosition = CsvFileMapping(SampleName)
+            ' Debug print statements for verification
+            Debug.Print "SampleName: " & SampleName
+            Debug.Print "SentrixPosition: " & SentrixPosition
+            
+            ' Combine SampleName and SentrixPosition for comparison
+            Dim SearchString As String
+            SearchString = "_" & SentrixPosition & ".gtc"
+
+            ' Match the file path containing the SampleID and SentrixPosition
+            For Each FilePath In FilePaths
+                Debug.Print "Checking Path: " & FilePath
+                If InStr(FilePath, SearchString) > 0 Then
+                    Debug.Print "Match found: " & FilePath
+                    Exit For
+                End If
+            Next FilePath
+        Else
+            Debug.Print "Ei leidnud csv failist analüüsi Ekoodi vastet: " & SampleName
+            ' MsgBox "Oi-oi. Ei leidnud csv failist analüüsi Ekoodi vastet: " & SampleName & "." & vbNewLine & "Ei saanud VIA faili teha.", vbExclamation
+        End If
+
+        ' Create the content for this row
+        TxtContent = SampleName & vbTab & FilePath & vbTab & SampleType & vbTab & ProcessingSetting & vbTab & GDABeadChip & vbTab & PatientName & vbTab & PatientId & vbTab & Age & vbTab & Indication & vbTab & Doctor
+
+        ' Write the row to the text file
+        Print #1, TxtContent
+    Next RowNum
+
+    ' Close the text file
+    Close #1
+
+    ' Notify the user that the process is complete
+    MsgBox "Salvestasin VIA faili siia: " & vbNewLine & OutputFile & vbNewLine & vbNewLine & "Palun kontrolli fail üle enne kui VIA-sse laed! ", vbInformation
+End Sub
+
+' Helper function to get all .gtc files in a directory and its subdirectories
+Sub GetGTCFiles(Folder As Object, FilePaths As Collection)
+    Dim SubFolder As Object
+    Dim File As Object
+
+    ' Loop through each file in the folder
+    For Each File In Folder.Files
+        If Right(File.Name, 4) = ".gtc" Then
+            FilePaths.Add File.Path
+        End If
+    Next File
+
+    ' Loop through each subfolder in the folder
+    For Each SubFolder In Folder.Subfolders
+        Call GetGTCFiles(SubFolder, FilePaths)
+    Next SubFolder
+End Sub
+
