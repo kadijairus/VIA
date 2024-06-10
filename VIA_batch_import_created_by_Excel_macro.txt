@@ -1,3 +1,7 @@
+' VIA sisendfaili automaatne koostaja
+' v1 10.06.2024
+' Kadi Jairus
+
 Sub CreateTxtFileFromGTC()
     ' Declare variables
     Dim SelectedFolder As String
@@ -59,7 +63,6 @@ Sub CreateTxtFileFromGTC()
     FolderPathSplit = Split(SelectedFolder, "\")
     FolderName = FolderPathSplit(UBound(FolderPathSplit))
     
-
     ' Recursively scan for .gtc files
     Set MainFolder = FileSystem.GetFolder(SelectedFolder)
     Call GetGTCFiles(MainFolder, FilePaths)
@@ -101,13 +104,20 @@ Sub CreateTxtFileFromGTC()
 
     ' Write the header to the text file
     Print #1, "Sample Name" & vbTab & "Filename" & vbTab & "Sample Type" & vbTab & "Processing Setting" & vbTab & "GDA BeadChip" & vbTab & "Patient Name" & vbTab & "Patient Id" & vbTab & "Age" & vbTab & "Indication" & vbTab & "Doctor"
+    
+    ' Determine the last row with data in the first column
+    Dim LastRow As Long
+    LastRow = ThisWorkbook.Sheets(1).Cells(ThisWorkbook.Sheets(1).Rows.Count, 1).End(xlUp).Row
 
-    ' Iterate through rows 2 to 33 in the Excel sheet and write data to text file
-    For RowNum = 2 To 33
+    ' Iterate through rows 2 to LastRow in the Excel sheet and write data to text file
+    Dim PathIndex As Integer
+    PathIndex = 1
+
+    For RowNum = 2 To LastRow
         ' Extract data from the Excel sheet
         SampleName = ThisWorkbook.Sheets(1).Cells(RowNum, 5).Value
         SampleType = ThisWorkbook.Sheets(1).Cells(RowNum, 11).Value
-        ProcessingSetting = "GDA-v1"
+        ProcessingSetting = "GDA_v1"
         GDABeadChip = "GDA_" & ThisWorkbook.Sheets(1).Cells(RowNum, 1).Value
         PatientName = ThisWorkbook.Sheets(1).Cells(RowNum, 3).Value
         PatientId = ThisWorkbook.Sheets(1).Cells(RowNum, 4).Value
@@ -115,31 +125,12 @@ Sub CreateTxtFileFromGTC()
         Indication = ThisWorkbook.Sheets(1).Cells(RowNum, 9).Value & " " & ThisWorkbook.Sheets(1).Cells(RowNum, 10).Value
         Doctor = ThisWorkbook.Sheets(1).Cells(RowNum, 8).Value
 
-        ' Initialize the path to "No corresponding file"
-        FilePath = "Fail puudub"
-        
-        ' Find the corresponding file path based on SampleName
-        If CsvFileMapping.Exists(SampleName) Then
-            SentrixPosition = CsvFileMapping(SampleName)
-            ' Debug print statements for verification
-            Debug.Print "SampleName: " & SampleName
-            Debug.Print "SentrixPosition: " & SentrixPosition
-            
-            ' Combine SampleName and SentrixPosition for comparison
-            Dim SearchString As String
-            SearchString = "_" & SentrixPosition & ".gtc"
-
-            ' Match the file path containing the SampleID and SentrixPosition
-            For Each FilePath In FilePaths
-                Debug.Print "Checking Path: " & FilePath
-                If InStr(FilePath, SearchString) > 0 Then
-                    Debug.Print "Match found: " & FilePath
-                    Exit For
-                End If
-            Next FilePath
+        ' Get the path from the collection based on the current index
+        If PathIndex <= FilePaths.Count Then
+            FilePath = FilePaths(PathIndex)
+            PathIndex = PathIndex + 1
         Else
-            Debug.Print "Ei leidnud csv failist analüüsi Ekoodi vastet: " & SampleName
-            ' MsgBox "Oi-oi. Ei leidnud csv failist analüüsi Ekoodi vastet: " & SampleName & "." & vbNewLine & "Ei saanud VIA faili teha.", vbExclamation
+            FilePath = "Fail puudub"
         End If
 
         ' Create the content for this row
@@ -173,4 +164,5 @@ Sub GetGTCFiles(Folder As Object, FilePaths As Collection)
         Call GetGTCFiles(SubFolder, FilePaths)
     Next SubFolder
 End Sub
+
 
