@@ -1,5 +1,6 @@
 ' VIA sisendfaili automaatne koostaja
-' v1 10.06.2024
+' v2 21.06.2024
+' Changes: added DateTaken; changed setting GDA_v1 to GDA_v2; changed info messagebox text "failitüübid" to "proovitüübid"
 ' Kadi Jairus
 
 Sub CreateTxtFileFromGTC()
@@ -25,6 +26,7 @@ Sub CreateTxtFileFromGTC()
     Dim Age As String
     Dim Indication As String
     Dim Doctor As String
+    Dim DateTaken As Date
     Dim i As Integer
     
     ' Variables for CSV parsing
@@ -41,8 +43,8 @@ Sub CreateTxtFileFromGTC()
     Set CsvFileMapping = CreateObject("Scripting.Dictionary")
     
     ' Ask user if they have checked sample types
-    If MsgBox("Kas kontrollisid näidustuste failis VIA failitüübid üle?", vbYesNo + vbQuestion, "Sample Types") = vbNo Then
-        MsgBox "Ära usalda rumalat masinat. " & vbNewLine & "Palun kontrolli automaatselt määratud VIA failitüübid üle!", vbExclamation
+    If MsgBox("Kas kontrollisid näidustuste faili viimases tulbas VIA proovitüübid üle?", vbYesNo + vbQuestion, "Sample Types") = vbNo Then
+        MsgBox "Ära usalda rumalat masinat. " & vbNewLine & "Palun kontrolli automaatselt määratud VIA proovitüübid üle!", vbExclamation
         Exit Sub
     End If
 
@@ -103,7 +105,7 @@ Sub CreateTxtFileFromGTC()
     Open OutputFile For Output As #1
 
     ' Write the header to the text file
-    Print #1, "Sample Name" & vbTab & "Filename" & vbTab & "Sample Type" & vbTab & "Processing Setting" & vbTab & "GDA BeadChip" & vbTab & "Patient Name" & vbTab & "Patient Id" & vbTab & "Age" & vbTab & "Indication" & vbTab & "Doctor"
+    Print #1, "Sample Name" & vbTab & "Filename" & vbTab & "Sample Type" & vbTab & "Processing Setting" & vbTab & "GDA BeadChip" & vbTab & "Patient Name" & vbTab & "Patient Id" & vbTab & "Age" & vbTab & "Indication" & vbTab & "Doctor" & vbTab & "Date Taken"
     
     ' Determine the last row with data in the first column
     Dim LastRow As Long
@@ -117,13 +119,14 @@ Sub CreateTxtFileFromGTC()
         ' Extract data from the Excel sheet
         SampleName = ThisWorkbook.Sheets(1).Cells(RowNum, 5).Value
         SampleType = ThisWorkbook.Sheets(1).Cells(RowNum, 11).Value
-        ProcessingSetting = "GDA_v1"
+        ProcessingSetting = "GDA_v2"
         GDABeadChip = "GDA_" & ThisWorkbook.Sheets(1).Cells(RowNum, 1).Value
         PatientName = ThisWorkbook.Sheets(1).Cells(RowNum, 3).Value
         PatientId = ThisWorkbook.Sheets(1).Cells(RowNum, 4).Value
         Age = ThisWorkbook.Sheets(1).Cells(RowNum, 6).Value
         Indication = ThisWorkbook.Sheets(1).Cells(RowNum, 9).Value & " " & ThisWorkbook.Sheets(1).Cells(RowNum, 10).Value
         Doctor = ThisWorkbook.Sheets(1).Cells(RowNum, 8).Value
+        DateTaken = ThisWorkbook.Sheets(1).Cells(RowNum, 7).Value
 
         ' Get the path from the collection based on the current index
         If PathIndex <= FilePaths.Count Then
@@ -134,7 +137,7 @@ Sub CreateTxtFileFromGTC()
         End If
 
         ' Create the content for this row
-        TxtContent = SampleName & vbTab & FilePath & vbTab & SampleType & vbTab & ProcessingSetting & vbTab & GDABeadChip & vbTab & PatientName & vbTab & PatientId & vbTab & Age & vbTab & Indication & vbTab & Doctor
+        TxtContent = SampleName & vbTab & FilePath & vbTab & SampleType & vbTab & ProcessingSetting & vbTab & GDABeadChip & vbTab & PatientName & vbTab & PatientId & vbTab & Age & vbTab & Indication & vbTab & Doctor & vbTab & DateTaken
 
         ' Write the row to the text file
         Print #1, TxtContent
@@ -164,5 +167,3 @@ Sub GetGTCFiles(Folder As Object, FilePaths As Collection)
         Call GetGTCFiles(SubFolder, FilePaths)
     Next SubFolder
 End Sub
-
-
