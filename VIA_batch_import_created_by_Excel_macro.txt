@@ -1,7 +1,13 @@
-' VIA sisendfaili automaatne koostaja
-' v3 02.12.2024
-' Changes: added gtf path correctness check based on CVS file
-' Kadi Jairus
+'**********************************************************************************
+' Purpose:      Create csv file to batch import patient data to VIA program
+' Input:        Patient data in Excel worksheet
+'               Illumina Genome Studio .gtc files
+' Output:       A .csv file with patient data combined with correct .gtc file paths
+' Version:      v4 02.01.2025
+' Changes:      Added checkbox to export only selected patients to VIA
+' Author:       Kadi Jairus
+'               kadi.jairus@kliinikum.ee
+'*********************************************************************************
 
 Sub CreateTxtFileFromGTC()
     ' Declare variables
@@ -42,19 +48,20 @@ Sub CreateTxtFileFromGTC()
     Set CsvFileMapping = CreateObject("Scripting.Dictionary")
     
     ' Ask user if they have checked sample types
-    If MsgBox("Kas kontrollisid näidustuste faili viimases tulbas VIA proovitüübid üle?", vbYesNo + vbQuestion, "Sample Types") = vbNo Then
-        MsgBox "Ära usalda rumalat masinat. " & vbNewLine & "Palun kontrolli automaatselt määratud VIA proovitüübid üle!", vbExclamation
+    If MsgBox("Kas valisid imporditavad patsiendid tulbast J?" & vbCrLf & _
+        "Kas kontrollisid nÃ¤idustuste faili viimases tulbas VIA proovitÃ¼Ã¼bid Ã¼le?", vbYesNo + vbQuestion, "Sample Types") = vbNo Then
+        MsgBox "Ã„ra usalda rumalat masinat. " & vbNewLine & "Palun kontrolli automaatselt mÃ¤Ã¤ratud VIA proovitÃ¼Ã¼bid Ã¼le!", vbExclamation
         Exit Sub
     End If
 
     ' Prompt user to select a directory
-    MsgBox "Palun vali kaust, kus asub sellele näidustuste failile vastav Genome Studio projekt!", vbInformation
+    MsgBox "Palun vali kaust, kus asub sellele nÃ¤idustuste failile vastav Genome Studio projekt!", vbInformation
     With Application.FileDialog(msoFileDialogFolderPicker)
         .Title = "Palun vali kaust, kus asub Genome Studio projekt"
         If .Show = -1 Then
             SelectedFolder = .SelectedItems(1)
         Else
-            MsgBox "Oi-oi. Kaust jäi valmimata." & vbNewLine & "Ei saanud VIA faili teha.", vbExclamation
+            MsgBox "Oi-oi. Kaust jÃ¤i valmimata." & vbNewLine & "Ei saanud VIA faili teha.", vbExclamation
             Exit Sub
         End If
     End With
@@ -78,7 +85,7 @@ Sub CreateTxtFileFromGTC()
     Next File
     
     If CsvFile = "" Then
-        MsgBox "Oi-oi. Ei õnnestunud CytoChip csv faili leida." & vbNewLine & "Ei saanud VIA faili teha.", vbExclamation
+        MsgBox "Oi-oi. Ei Ãµnnestunud CytoChip csv faili leida." & vbNewLine & "Ei saanud VIA faili teha.", vbExclamation
         Exit Sub
     End If
     
@@ -140,58 +147,64 @@ NextLine:             ' Label to continue to the next line
     Dim LastRow As Long
     Dim ExpectedFilePath As String
     Dim PathFound As Boolean
+    ' Only include if "TRUE" in column "VIAsse"
+    Dim BooleanValue As Boolean
     LastRow = ThisWorkbook.Sheets(1).Cells(ThisWorkbook.Sheets(1).Rows.Count, 1).End(xlUp).Row
     
     Dim GtcDetailsFromCollection As Collection
     
     For RowNum = 2 To LastRow
-        ' Extract data from the Excel sheet
-        SampleName = ThisWorkbook.Sheets(1).Cells(RowNum, 5).Value
-        SampleType = ThisWorkbook.Sheets(1).Cells(RowNum, 11).Value
-        ProcessingSetting = "GDA_v2"
-        GDABeadChip = "GDA_" & ThisWorkbook.Sheets(1).Cells(RowNum, 1).Value
-        PatientName = ThisWorkbook.Sheets(1).Cells(RowNum, 4).Value
-        PatientId = ThisWorkbook.Sheets(1).Cells(RowNum, 4).Value
-        Age = ThisWorkbook.Sheets(1).Cells(RowNum, 6).Value
-        Indication = ThisWorkbook.Sheets(1).Cells(RowNum, 9).Value & " " & ThisWorkbook.Sheets(1).Cells(RowNum, 10).Value
-        Doctor = ThisWorkbook.Sheets(1).Cells(RowNum, 8).Value
-        DateTaken = ThisWorkbook.Sheets(1).Cells(RowNum, 7).Value
-    
-        ' Match Sample Name to file path
-        PathFound = False
-        If CsvFileMapping.Exists(SampleName) Then
-            Set GtcDetailsFromCollection = CsvFileMapping(SampleName)
-            ' Retrieve GtcFolder and Position
-            GtcFolder = GtcDetailsFromCollection(1)  ' First item is GtcFolder
-            Position = GtcDetailsFromCollection(2)   ' Second item is Position
-            'MsgBox "Found for " & SampleName & " : " & GtcFolder & " " & Position
-    
-        ' Construct the expected file path
-        ExpectedFilePath = SelectedFolder & "\" & GtcFolder & "\" & GtcFolder & "_" & Position & ".gtc"
-        'MsgBox "Path " & ExpectedFilePath
-        If FileSystem.FileExists(ExpectedFilePath) Then
-            FilePath = ExpectedFilePath
-            PathFound = True
-        Else
-            FilePath = "Fail puudub"
+         ' Check the boolean value in column J (10th column)
+        BooleanValue = ThisWorkbook.Sheets(1).Cells(RowNum, 10).Value
+        If BooleanValue = True Then
+            ' Extract data from the Excel sheet
+            SampleName = ThisWorkbook.Sheets(1).Cells(RowNum, 5).Value
+            SampleType = ThisWorkbook.Sheets(1).Cells(RowNum, 11).Value
+            ProcessingSetting = "GDA_v2"
+            GDABeadChip = "GDA_" & ThisWorkbook.Sheets(1).Cells(RowNum, 1).Value
+            PatientName = ThisWorkbook.Sheets(1).Cells(RowNum, 3).Value
+            PatientId = ThisWorkbook.Sheets(1).Cells(RowNum, 4).Value
+            Age = ThisWorkbook.Sheets(1).Cells(RowNum, 6).Value
+            Indication = ThisWorkbook.Sheets(1).Cells(RowNum, 9).Value
+            Doctor = ThisWorkbook.Sheets(1).Cells(RowNum, 8).Value
+            DateTaken = ThisWorkbook.Sheets(1).Cells(RowNum, 7).Value
+        
+            ' Match Sample Name to file path
+            PathFound = False
+            If CsvFileMapping.Exists(SampleName) Then
+                Set GtcDetailsFromCollection = CsvFileMapping(SampleName)
+                ' Retrieve GtcFolder and Position
+                GtcFolder = GtcDetailsFromCollection(1)  ' First item is GtcFolder
+                Position = GtcDetailsFromCollection(2)   ' Second item is Position
+                'MsgBox "Found for " & SampleName & " : " & GtcFolder & " " & Position
+        
+            ' Construct the expected file path
+            ExpectedFilePath = SelectedFolder & "\" & GtcFolder & "\" & GtcFolder & "_" & Position & ".gtc"
+            'MsgBox "Path " & ExpectedFilePath
+            If FileSystem.FileExists(ExpectedFilePath) Then
+                FilePath = ExpectedFilePath
+                PathFound = True
+            Else
+                FilePath = "Fail puudub"
+            End If
+            Else
+                MsgBox "Ei leidnud gtc failide seast proovi " & SampleName
+                FilePath = "Fail puudub"
+            End If
+        
+            ' Create the content for this row
+            TxtContent = SampleName & vbTab & FilePath & vbTab & SampleType & vbTab & ProcessingSetting & vbTab & GDABeadChip & vbTab & PatientName & vbTab & PatientId & vbTab & Age & vbTab & Indication & vbTab & Doctor & vbTab & DateTaken
+        
+            ' Write the row to the text file
+            Print #1, TxtContent
         End If
-        Else
-            MsgBox "Ei leidnud gtc failide seast proovi " & SampleName
-            FilePath = "Fail puudub"
-        End If
-    
-        ' Create the content for this row
-        TxtContent = SampleName & vbTab & FilePath & vbTab & SampleType & vbTab & ProcessingSetting & vbTab & GDABeadChip & vbTab & PatientName & vbTab & PatientId & vbTab & Age & vbTab & Indication & vbTab & Doctor & vbTab & DateTaken
-    
-        ' Write the row to the text file
-        Print #1, TxtContent
     Next RowNum
 
     ' Close the text file
     Close #1
 
     ' Notify the user that the process is complete
-    MsgBox "Salvestasin VIA faili siia: " & vbNewLine & OutputFile & vbNewLine & vbNewLine & "Palun kontrolli fail üle enne kui VIA-sse laed! ", vbInformation
+    MsgBox "Salvestasin VIA faili siia: " & vbNewLine & OutputFile & vbNewLine & vbNewLine & "Palun kontrolli fail Ã¼le enne kui VIA-sse laed! ", vbInformation
 End Sub
 
 ' Helper function to get all .gtc files in a directory and its subdirectories
