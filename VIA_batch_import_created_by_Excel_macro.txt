@@ -143,7 +143,7 @@ NextLine:                 ' Label to continue to the next line
     UserName = Replace(Environ("Username"), " ", "_")
 
     ' Prepare output text file path with date, time, and username
-    OutputFile = SelectedFolder & "\" & FolderName & "_" & CurrentDateTime & "_Via_lisas_" & UserName & ".txt"
+    OutputFile = SelectedFolder & "\" & FolderName & "_Via_lisas_" & UserName & "_" & CurrentDateTime & ".txt"
 
     ' Open text file for writing
     Open OutputFile For Output As #1
