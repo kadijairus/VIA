@@ -3,8 +3,8 @@
 ' Input:        Patient data in Excel worksheet
 '               Illumina Genome Studio .gtc files
 ' Output:       A .csv file with patient data combined with correct .gtc file paths
-' Version:      v4 02.01.2025
-' Changes:      Added checkbox to export only selected patients to VIA
+' Version:      v5 19.02.2025
+' Changes:      Added datetime and username to txt file name
 ' Author:       Kadi Jairus
 '               kadi.jairus@kliinikum.ee
 '*********************************************************************************
@@ -130,12 +130,20 @@ Sub CreateTxtFileFromGTC()
             ' Debugging: Output TestFolder and TestPosition values
             'MsgBox SampleID & " TestFolder: " & TestFolder & " TestPosition: " & TestPosition
         End If
-NextLine:             ' Label to continue to the next line
+NextLine:                 ' Label to continue to the next line
     Loop
     Close #1
+    
+    ' Get current date and time without seconds
+    Dim CurrentDateTime As String
+    CurrentDateTime = Format(Now, "yyyy-mm-dd_hh-nn")
 
-    ' Prepare output text file path
-    OutputFile = SelectedFolder & "\" & FolderName & "_Via.txt"
+    ' Get logged-in username and replace spaces with underscores
+    Dim UserName As String
+    UserName = Replace(Environ("Username"), " ", "_")
+
+    ' Prepare output text file path with date, time, and username
+    OutputFile = SelectedFolder & "\" & FolderName & "_" & CurrentDateTime & "_Via_lisas_" & UserName & ".txt"
 
     ' Open text file for writing
     Open OutputFile For Output As #1
